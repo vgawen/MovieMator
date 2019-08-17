@@ -735,6 +735,60 @@ static int convertTimeToFramesWithNewFps(QString strOldTime, FRAME_RATE framerat
     return nFramesNew;
 }
 
+static void recalculateTimeInPlaylist(QDomElement &domElement, FRAME_RATE framerateOld, FRAME_RATE framerateNew)
+{
+    Q_ASSERT(domElement.tagName().compare("playlist", Qt::CaseInsensitive) == 0);
+
+    if (domElement.tagName().compare("playlist", Qt::CaseInsensitive) != 0)
+        return;
+
+    int nClipStartPositionOnPlaylist = 0;
+    int nEndPostionOfLastClip = 0;
+
+    QDomNodeList domNodeList = domElement.childNodes();
+    for(int i = 0; i < domNodeList.count(); i++)
+    {
+        QDomElement domElement = domNodeList.at(i).toElement();
+
+        if (domElement.tagName().compare("entry", Qt::CaseInsensitive) == 0)
+        {
+            //in、out
+            QDomAttr domAttrIn = domElement.attributeNode("in");
+            QDomAttr domAttrOut = domElement.attributeNode("out");
+            int nFramesIn = 0;
+            int nFramesOut = 0;
+            int nFramesLength = 0;
+            int nClipEndPositionOnPlaylist = 0;
+            if (domAttrIn.isNull() || domAttrOut.isNull())
+                continue;
+            nFramesIn = timeStringToFrames(domAttrIn.value().toUtf8().constData(), framerateOld);
+            nFramesOut = timeStringToFrames(domAttrOut.value().toUtf8().constData(), framerateOld);
+            nFramesLength = nFramesOut - nFramesIn + 1;
+            nClipEndPositionOnPlaylist = nClipStartPositionOnPlaylist + nFramesLength;
+
+            //new in point
+
+            //new end postion on playlist
+            //newlength = new end - endoflastclip
+            //new out = new in + newlength - 1;
+
+            nClipStartPositionOnPlaylist += nFramesLength;
+
+        }
+        if (domElement.tagName().compare("blank", Qt::CaseInsensitive) == 0)
+        {
+            //length
+            QDomAttr domAttrIn = domElement.attributeNode("length");
+            int nFramesLength;
+
+            //new out = nEndPostionOfLastClip + nFramesLength
+
+
+            nClipStartPositionOnPlaylist += nFramesLength;
+        }
+    }
+}
+
 static void recaculateTimeAttribute(QDomElement &domElement, FRAME_RATE framerateOld, FRAME_RATE framerateNew)
 {
     Q_ASSERT(!domElement.isNull());
