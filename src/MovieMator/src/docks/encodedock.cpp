@@ -742,8 +742,8 @@ static void recalculateTimeInPlaylist(QDomElement &domElement, FRAME_RATE framer
     if (domElement.tagName().compare("playlist", Qt::CaseInsensitive) != 0)
         return;
 
-    int nClipStartPositionOnPlaylist = 0;
-    int nEndPostionOfLastClip = 0;
+    int nEndPostionOfLastClip = -1;
+    int nRecalculatedEndPostionOfLastClip = -1;
 
     QDomNodeList domNodeList = domElement.childNodes();
     for(int i = 0; i < domNodeList.count(); i++)
@@ -764,7 +764,7 @@ static void recalculateTimeInPlaylist(QDomElement &domElement, FRAME_RATE framer
             nFramesIn = timeStringToFrames(domAttrIn.value().toUtf8().constData(), framerateOld);
             nFramesOut = timeStringToFrames(domAttrOut.value().toUtf8().constData(), framerateOld);
             nFramesLength = nFramesOut - nFramesIn + 1;
-            nClipEndPositionOnPlaylist = nClipStartPositionOnPlaylist + nFramesLength;
+            //nClipEndPositionOnPlaylist = nClipStartPositionOnPlaylist + nFramesLength;
 
             //new in point
 
@@ -772,7 +772,8 @@ static void recalculateTimeInPlaylist(QDomElement &domElement, FRAME_RATE framer
             //newlength = new end - endoflastclip
             //new out = new in + newlength - 1;
 
-            nClipStartPositionOnPlaylist += nFramesLength;
+            //nEndPostionOfLastClip += nFramesLength;
+            //nRecalculatedEndPostionOfLastClip += newlength
 
         }
         if (domElement.tagName().compare("blank", Qt::CaseInsensitive) == 0)
@@ -781,10 +782,13 @@ static void recalculateTimeInPlaylist(QDomElement &domElement, FRAME_RATE framer
             QDomAttr domAttrIn = domElement.attributeNode("length");
             int nFramesLength;
 
-            //new out = nEndPostionOfLastClip + nFramesLength
+            //out = nEndPostionOfLastClip + nFramesLength
+            //new out
+            // newlength = new out - nEndPositionOfLastClipNew
 
 
-            nClipStartPositionOnPlaylist += nFramesLength;
+            //nClipStartPositionOnPlaylist += nFramesLength;
+            //nRecalculatedEndPostionOfLastClip += newlength
         }
     }
 }
