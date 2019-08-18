@@ -723,14 +723,14 @@ static int convertTimeToFramesWithNewFps(QString strOldTime, FRAME_RATE framerat
 
     double dFramesNew =  nFrameOld * dFpsNew / dFpsOld;
 
-    srand(time(NULL));
-
-    if (qFuzzyIsNull(dFramesNew - floor(dFramesNew)))
-        nFramesNew = floor(dFramesNew);
-    else if(rand()/RAND_MAX > dFramesNew - floor(dFramesNew))
-        nFramesNew = floor(dFramesNew);
-    else
-        nFramesNew = floor(dFramesNew) + 1;
+//    srand(time(NULL));
+//    if (qFuzzyIsNull(dFramesNew - floor(dFramesNew)))
+//        nFramesNew = floor(dFramesNew);
+//    else if(rand()/RAND_MAX > dFramesNew - floor(dFramesNew))
+//        nFramesNew = floor(dFramesNew);
+//    else
+//        nFramesNew = floor(dFramesNew) + 1;
+    nFramesNew = floor(dFramesNew + 0.5);
 
     return nFramesNew;
 }
@@ -743,7 +743,7 @@ static void recalculateTimeInPlaylist(QDomElement &domElement, FRAME_RATE framer
         return;
 
     int nEndPostionOfLastClip = -1;
-    int nRecalculatedEndPostionOfLastClip = -1;
+    int nEndPostionOfLastClipRecalculated = -1;
 
     QDomNodeList domNodeList = domElement.childNodes();
     for(int i = 0; i < domNodeList.count(); i++)
@@ -752,43 +752,58 @@ static void recalculateTimeInPlaylist(QDomElement &domElement, FRAME_RATE framer
 
         if (domElement.tagName().compare("entry", Qt::CaseInsensitive) == 0)
         {
+            int nFramesIn                           = 0;
+            int nFramesInRecalculated               = 0;
+            int nFramesOut                          = 0;
+            int nFramesOutRecalculated              = 0;
+            int nFramesLength                       = 0;
+            int nFramesLengthRecalculated           = 0;
+            int nEndPositionOnPlaylist              = 0;
+            int nEndPositionOnPlaylistRecalculated  = 0;
+
             //in、out
             QDomAttr domAttrIn = domElement.attributeNode("in");
             QDomAttr domAttrOut = domElement.attributeNode("out");
-            int nFramesIn = 0;
-            int nFramesOut = 0;
-            int nFramesLength = 0;
-            int nClipEndPositionOnPlaylist = 0;
+
             if (domAttrIn.isNull() || domAttrOut.isNull())
                 continue;
+
             nFramesIn = timeStringToFrames(domAttrIn.value().toUtf8().constData(), framerateOld);
+            nFramesInRecalculated = convertTimeToFramesWithNewFps(QString::number(nFramesIn), framerateOld, framerateNew);
+
             nFramesOut = timeStringToFrames(domAttrOut.value().toUtf8().constData(), framerateOld);
             nFramesLength = nFramesOut - nFramesIn + 1;
-            //nClipEndPositionOnPlaylist = nClipStartPositionOnPlaylist + nFramesLength;
 
-            //new in point
+            nEndPositionOnPlaylist = nEndPostionOfLastClip + nFramesLength;
+            nEndPositionOnPlaylistRecalculated = convertTimeToFramesWithNewFps(QString::number(nEndPositionOnPlaylist), framerateOld, framerateNew);
 
-            //new end postion on playlist
-            //newlength = new end - endoflastclip
-            //new out = new in + newlength - 1;
+            nFramesLengthRecalculated = nEndPositionOnPlaylistRecalculated - nEndPostionOfLastClipRecalculated;
+            nFramesOutRecalculated = nFramesInRecalculated + nFramesLengthRecalculated - 1;
 
-            //nEndPostionOfLastClip += nFramesLength;
-            //nRecalculatedEndPostionOfLastClip += newlength
+            nEndPostionOfLastClip = nEndPositionOnPlaylist;
+            nEndPostionOfLastClipRecalculated = nEndPositionOnPlaylistRecalculated;
 
+            domAttrIn.setValue(QString::number(nFramesInRecalculated));
+            domAttrOut.setValue(QString::number(nFramesOutRecalculated));
         }
         if (domElement.tagName().compare("blank", Qt::CaseInsensitive) == 0)
         {
             //length
-            QDomAttr domAttrIn = domElement.attributeNode("length");
-            int nFramesLength;
+            QDomAttr domAttrLength = domElement.attributeNode("length");
+            if (domAttrLength.isNull())
+                continue;
 
-            //out = nEndPostionOfLastClip + nFramesLength
-            //new out
-            // newlength = new out - nEndPositionOfLastClipNew
+            int nFramesLength = timeStringToFrames(domAttrLength.value().toUtf8().constData(), framerateOld);
 
+            int nEndPositionOnPlaylist = nEndPostionOfLastClip + nFramesLength;
+            int nEndPositionOnPlaylistRecalculated = convertTimeToFramesWithNewFps(QString::number(nEndPositionOnPlaylist), framerateOld, framerateNew);
 
-            //nClipStartPositionOnPlaylist += nFramesLength;
-            //nRecalculatedEndPostionOfLastClip += newlength
+            int nFramesLengthRecalculated = nEndPositionOnPlaylistRecalculated - nEndPostionOfLastClipRecalculated;
+
+            domAttrLength.setValue(QString::number(nFramesLengthRecalculated));
+
+            nEndPostionOfLastClip = nEndPositionOnPlaylist;
+            nEndPostionOfLastClipRecalculated = nEndPositionOnPlaylistRecalculated;
         }
     }
 }
@@ -857,6 +872,13 @@ static int recalculateTimeInDomElement(QDomElement domElement, FRAME_RATE framer
 
     if (framerateNew.nFrameRateDen <= 0 || framerateNew.nFrameRateNum <= 0)
         return nErrorCode;
+
+    //playlist处理
+    if (domElement.tagName().compare("playlist", Qt::CaseInsensitive) == 0)
+    {
+        recalculateTimeInPlaylist(domElement, framerateOld, framerateNew);
+        return 0;
+    }
 
 
     //process attributes of element
