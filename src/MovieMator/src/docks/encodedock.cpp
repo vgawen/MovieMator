@@ -503,6 +503,14 @@ void EncodeDock::loadPresets()
     ui->presetsTree->expandAll();
 }
 
+static int calculateBitrateWithQuality(int nQualityPercent, int nWidth, int nHeight)
+{
+    Q_ASSERT(nQualityPercent > 0 && nWidth > 0 && nHeight > 0);
+    if (nQualityPercent <=0)
+        nQualityPercent = 1;
+    return nWidth * nHeight * nQualityPercent;
+}
+
 Mlt::Properties* EncodeDock::collectProperties(int realtime)
 {
     Mlt::Properties* p = new Mlt::Properties;
@@ -600,7 +608,12 @@ Mlt::Properties* EncodeDock::collectProperties(int realtime)
                     } else if (vcodec.startsWith("libvpx")) {
                         p->set("crf", TO_ABSOLUTE(63, 0, vq));
                         p->set("vb", 0); // VP9 needs this to prevent constrained quality mode.
-                    } else {
+                    }
+                    else if(vcodec == "h264_videotoolbox")
+                    {//h264_videotoolbox不支持crf参数
+                        p->set("vb", calculateBitrateWithQuality(TO_ABSOLUTE(1, 10, vq), ui->widthSpinner->value(), ui->heightSpinner->value()));
+                    }
+                    else {
                         p->set("qscale", TO_ABSOLUTE(31, 1, vq));
                     }
                     break;
